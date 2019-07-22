@@ -1,3 +1,6 @@
+import os
+import sys
+
 import numpy as np
 from numpy.lib.stride_tricks import as_strided
 
@@ -39,7 +42,7 @@ def extract_patches(arr, patch_shape=(32,32,3), extraction_step=32):
     return patches
 
 
-def quality_estimate(image_path, args)
+def quality_estimate(image_path, args):
     FR = True
     if args.REF == "":
         FR = False
@@ -87,17 +90,46 @@ def quality_estimate(image_path, args)
 
     y = np.concatenate(y)
     weights = np.concatenate(weights)
-    qa = np.sum(y*weights)/np.sum(weights))
+    qa = np.sum(y*weights)/np.sum(weights)
     return qa
+
+
+def evaluate_slices(args):
+    root_dir = "/mnt/Depo/Datasets/ABIDE1/RawDataBIDS/"
+    nii_file_list = []
+    png_dir_list = []
+    for dir_, _, files in os.walk(root_dir):
+        for file_name in files:
+            if file_name.split('.')[-1] == 'gz':
+                rel_dir = os.path.relpath(dir_, root_dir)
+                if 'anat' in str(rel_dir):
+                    rel_file = os.path.join(root_dir, rel_dir, file_name)
+                    nii_file_list.append(rel_file)
+                    rel_file_dir = os.path.join(root_dir, rel_dir)
+                    png_dir = os.path.join(rel_file_dir, 'png')
+                    if not os.path.exists(png_dir):
+                        os.mkdir(png_dir)
+                    rel_file_name = file_name.split('.')[0]
+                    png_dir_list.append(png_dir)
+    for itr_png_dir, png_dir in enumerate(png_dir_list):
+        png_dir_loc = ''.join(png_dir[:-3])
+        qa_score_filepath = png_dir_loc+'qa_ch_1.csv'
+        with open(qa_score_filepath, 'w') as qa_f:
+            png_list = os.listdir(png_dir)
+            for itr_png_file, png_file_name in enumerate(png_list):
+                png_file_path = png_dir+'/'+png_file_name
+                qa_score = quality_estimate(png_file_path, args)
+                qa_f.write(f'{itr_png_file},{png_file_path},{qa_score}\n')
+                print(f'{itr_png_file},{png_file_path},{qa_score}')
+
 
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='evaluate_abide1.py')
-    parser.add_argument('INPUT', help='path to input image')
-    parser.add_argument('REF', default="", nargs="?", help='path to reference image, if omitted NR IQA is assumed')
-    parser.add_argument('--model', '-m', default='', help='path to the trained model')
+    parser.add_argument('--reference', '-r', dest='REF', default="", nargs="?", help='path to reference image, if omitted NR IQA is assumed')
+    parser.add_argument('--model', '-m', default='./models/nr_live_patchwise.model', help='path to the trained model')
     parser.add_argument('--top', choices=('patchwise', 'weighted'),
-                        default='weighted', help='top layer and loss definition')
+                        default='patchwise', help='top layer and loss definition')
     parser.add_argument('--gpu', '-g', default=0, type=int,
                         help='GPU ID')
     args = parser.parse_args()
@@ -105,4 +137,8 @@ if __name__=='__main__':
 
     chainer.global_config.train = False
     chainer.global_config.cudnn_deterministic = True
+
+    evaluate_slices(args)
+
+
 
