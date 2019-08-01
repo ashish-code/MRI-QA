@@ -114,14 +114,19 @@ def evaluate_slices(args):
     for itr_png_dir, png_dir in enumerate(png_dir_list):
         png_dir_loc = ''.join(png_dir[:-3])
         qa_score_filepath = png_dir_loc+'qa_ch_1.csv'
-        with open(qa_score_filepath, 'w') as qa_f:
-            png_list = os.listdir(png_dir)
-            for itr_png_file, png_file_name in enumerate(png_list):
-                png_file_path = png_dir+'/'+png_file_name
-                qa_score = quality_estimate(png_file_path, args)
-                qa_f.write(f'{itr_png_file},{png_file_path},{qa_score}\n')
-                print(f'{itr_png_file},{png_file_path},{qa_score}')
-
+        if not os.path.exists(qa_score_filepath):
+            with open(qa_score_filepath, 'w') as qa_f:
+                png_list = os.listdir(png_dir)
+                for itr_png_file, png_file_name in enumerate(png_list):
+                    png_file_path = png_dir+'/'+png_file_name
+                    qa_score = quality_estimate(png_file_path, args)
+                    qa_f.write(f'{itr_png_file},{png_file_path},{qa_score}\n')
+                    print(f'{itr_png_file},{png_file_path},{qa_score}')
+        else:
+            with open(qa_score_filepath, 'r') as qa_f:
+                lines = qa_f.readlines()
+                for line in lines:
+                    print(line)
 
 
 if __name__=='__main__':
