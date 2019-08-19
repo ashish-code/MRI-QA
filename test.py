@@ -1,5 +1,5 @@
 from ../setting import parse_opts 
-from datasets.brains18 import BrainS18Dataset
+from datasets.abide1 import Abide1Dataset
 from model import generate_model
 import torch
 import numpy as np
@@ -11,40 +11,39 @@ import os
 from utils.file_process import load_lines
 import numpy as np
 
-def seg_eval(pred, label, clss):
-    """
-    calculate the dice between prediction and ground truth
-    input:
-        pred: predicted mask
-        label: groud truth
-        clss: eg. [0, 1] for binary class
-    """
-    Ncls = len(clss)
-    dices = np.zeros(Ncls)
-    [depth, height, width] = pred.shape
-    for idx, cls in enumerate(clss):
-        # binary map
-        pred_cls = np.zeros([depth, height, width])
-        pred_cls[np.where(pred == cls)] = 1
-        label_cls = np.zeros([depth, height, width])
-        label_cls[np.where(label == cls)] = 1
+# def seg_eval(pred, label, clss):
+#     """
+#     calculate the dice between prediction and ground truth
+#     input:
+#         pred: predicted mask
+#         label: groud truth
+#         clss: eg. [0, 1] for binary class
+#     """
+#     Ncls = len(clss)
+#     dices = np.zeros(Ncls)
+#     [depth, height, width] = pred.shape
+#     for idx, cls in enumerate(clss):
+#         # binary map
+#         pred_cls = np.zeros([depth, height, width])
+#         pred_cls[np.where(pred == cls)] = 1
+#         label_cls = np.zeros([depth, height, width])
+#         label_cls[np.where(label == cls)] = 1
 
-        # cal the inter & conv
-        s = pred_cls + label_cls
-        inter = len(np.where(s >= 2)[0])
-        conv = len(np.where(s >= 1)[0]) + inter
-        try:
-            dice = 2.0 * inter / conv
-        except:
-            print("conv is zeros when dice = 2.0 * inter / conv")
-            dice = -1
+#         # cal the inter & conv
+#         s = pred_cls + label_cls
+#         inter = len(np.where(s >= 2)[0])
+#         conv = len(np.where(s >= 1)[0]) + inter
+#         try:
+#             dice = 2.0 * inter / conv
+#         except:
+#             print("conv is zeros when dice = 2.0 * inter / conv")
+#             dice = -1
 
-        dices[idx] = dice
+#         dices[idx] = dice
 
-    return dices
+#     return dices
 
 def test(data_loader, model, img_names, sets):
-    masks = []
     model.eval() # for testing 
     for batch_id, batch_data in enumerate(data_loader):
         # forward
@@ -52,7 +51,7 @@ def test(data_loader, model, img_names, sets):
         if not sets.no_cuda:
             volume = volume.cuda()
         with torch.no_grad():
-            probs = model(volume)
+            pred = model(volume)
 
         # resize mask to original size
         [batchsize, _, mask_d, mask_h, mask_w] = probs.shape
@@ -84,16 +83,14 @@ if __name__ == '__main__':
     net.load_state_dict(checkpoint['state_dict'])
 
     # data tensor
-    testing_data =BrainS18Dataset(sets.data_root, sets.img_list, sets)
+    testing_data =Abide1Dataset(sets.data_root, sets.img_list, sets)
     data_loader = DataLoader(testing_data, batch_size=1, shuffle=False, num_workers=1, pin_memory=False)
 
     # testing
-    img_names = [info.split(" ")[0] for info in load_lines(sets.img_list)]
-    masks = test(data_loader, net, img_names, sets)
+    img_names = [info.split(",")[0] for info in load_lines(sets.img_list)]
     
-    # calculate dice
-    label_names = [info.split(" ")[1] for info in load_lines(sets.img_list)]
-    Nimg = len(label_names)
+    labels = [info.split(",")[1] for info in load_lines(sets.img_list)]
+    Nimg = len(labels)
     dices = np.zeros([Nimg, sets.n_seg_classes])
     for idx in range(Nimg):
         label = nib.load(os.path.join(sets.data_root, label_names[idx]))

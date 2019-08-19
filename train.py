@@ -1,14 +1,16 @@
 '''
-Training code for MRBrainS18 datasets segmentation
-Written by Whalechen
+Training the Image Quality Asessment network
+Author: Ashish Gupta
+Email: ashishagupta@gmail.com
 '''
 
 from setting import parse_opts 
-from datasets.brains18 import BrainS18Dataset 
+from datasets.abide1 import Abide1Dataset
 from model import generate_model
 import torch
 import numpy as np
 from torch import nn
+from torch.nn import CrossEntropyLoss
 from torch import optim
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
@@ -21,14 +23,15 @@ def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval,
     # settings
     batches_per_epoch = len(data_loader)
     log.info('{} epochs in total, {} batches per epoch'.format(total_epochs, batches_per_epoch))
-    loss_seg = nn.CrossEntropyLoss(ignore_index=-1)
+    loss_class = nn.CrossEntropyLoss(ignore_index=-1)
 
     print("Current setting is:")
     print(sets)
     print("\n\n")     
     if not sets.no_cuda:
-        loss_seg = loss_seg.cuda()
-        
+        loss_class = loss_class.cuda()
+    
+    criterion = nn.CrossEntropyLoss()    
     model.train()
     train_time_sp = time.time()
     for epoch in range(total_epochs):
@@ -40,38 +43,22 @@ def train(data_loader, model, optimizer, scheduler, total_epochs, save_interval,
         for batch_id, batch_data in enumerate(data_loader):
             # getting data batch
             batch_id_sp = epoch * batches_per_epoch
-            volumes, label_masks = batch_data
+            volumes, labels = batch_data
 
             if not sets.no_cuda: 
                 volumes = volumes.cuda()
 
             optimizer.zero_grad()
-            out_masks = model(volumes)
-            # resize label
-            [n, _, d, h, w] = out_masks.shape
-            new_label_masks = np.zeros([n, d, h, w])
-            for label_id in range(n):
-                label_mask = label_masks[label_id]
-                [ori_c, ori_d, ori_h, ori_w] = label_mask.shape 
-                label_mask = np.reshape(label_mask, [ori_d, ori_h, ori_w])
-                scale = [d*1.0/ori_d, h*1.0/ori_h, w*1.0/ori_w]
-                label_mask = ndimage.interpolation.zoom(label_mask, scale, order=0)
-                new_label_masks[label_id] = label_mask
+            output = model(volumes)
 
-            new_label_masks = torch.tensor(new_label_masks).to(torch.int64)
-            if not sets.no_cuda:
-                new_label_masks = new_label_masks.cuda()
-
-            # calculating loss
-            loss_value_seg = loss_seg(out_masks, new_label_masks)
-            loss = loss_value_seg
+            loss = criterion(output, labels)
+            
             loss.backward()                
             optimizer.step()
 
             avg_batch_time = (time.time() - train_time_sp) / (1 + batch_id_sp)
-            log.info(
-                    'Batch: {}-{} ({}), loss = {:.3f}, loss_seg = {:.3f}, avg_batch_time = {:.3f}'\
-                    .format(epoch, batch_id, batch_id_sp, loss.item(), loss_value_seg.item(), avg_batch_time))
+            log.info('Batch: {}-{} ({}), loss = {:.3f}, avg_batch_time = {:.3f}'\
+                    .format(epoch, batch_id, batch_id_sp, loss, avg_batch_time))
           
             if not sets.ci_test:
                 # save model
@@ -104,7 +91,7 @@ if __name__ == '__main__':
         sets.no_cuda = True
         sets.data_root = './toy_data'
         sets.pretrain_path = ''
-        sets.num_workers = 0
+        sets.num_workers = 1
         sets.model_depth = 10
         sets.resnet_shortcut = 'A'
         sets.input_D = 14
@@ -125,7 +112,7 @@ if __name__ == '__main__':
                 { 'params': parameters['base_parameters'], 'lr': sets.learning_rate }, 
                 { 'params': parameters['new_parameters'], 'lr': sets.learning_rate*100 }
                 ]
-    optimizer = torch.optim.SGD(params, momentum=0.9, weight_decay=1e-3)   
+    optimizer = torch.optim.Adam(params, lr=3e-4, weight_decay=1e-2)   
     scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99)
     
     # train from resume
@@ -144,7 +131,7 @@ if __name__ == '__main__':
         sets.pin_memory = False
     else:
         sets.pin_memory = True    
-    training_dataset = BrainS18Dataset(sets.data_root, sets.img_list, sets)
+    training_dataset = Abide1Dataset(sets.data_root, sets.img_list, sets)
     data_loader = DataLoader(training_dataset, batch_size=sets.batch_size, shuffle=True, num_workers=sets.num_workers, pin_memory=sets.pin_memory)
 
     # training

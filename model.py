@@ -1,9 +1,27 @@
+"""Model Factory method
+
+Returns:
+    model -- Uses factory pattern to generate class based on parameters in opt
+
+    Author: Ashish Gupta
+    Email: ashishagupta@gmail.com
+"""
+
+
 import torch
 from torch import nn
 from models import resnet
 
 
 def generate_model(opt):
+    """Generate model (presently based on ResNet)
+    
+    Arguments:
+        opt {[type]} -- options, as described in settings and configuration file
+    
+    Returns:
+        [type] -- [description]
+    """
     assert opt.model in [
         'resnet'
     ]
@@ -82,7 +100,7 @@ def generate_model(opt):
     else:
         net_dict = model.state_dict()
     
-    # load pretrain
+    # load pretrained model
     if opt.pretrain_path:
         print ('loading pretrained model {}'.format(opt.pretrain_path))
         pretrain = torch.load(opt.pretrain_path)

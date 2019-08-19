@@ -1,3 +1,13 @@
+"""Definition of the ResNet class
+Code for feature extraction and fine tuning
+
+Returns:
+    [type] -- [description]
+
+    Author: Ashish Gupta
+    Email: ashishagupta@gmail.com
+"""
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -5,10 +15,7 @@ from torch.autograd import Variable
 import math
 from functools import partial
 
-__all__ = [
-    'ResNet', 'resnet10', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
-    'resnet152', 'resnet200'
-]
+__all__ = ['ResNet', 'resnet10', 'resnet18', 'resnet34', 'resnet50', 'resnet101','resnet152', 'resnet200']
 
 
 def conv3x3x3(in_planes, out_planes, stride=1, dilation=1):
@@ -38,6 +45,14 @@ def downsample_basic_block(x, planes, stride, no_cuda=False):
 
 
 class BasicBlock(nn.Module):
+    """Definition of the basic block module
+    
+    Arguments:
+        nn {[type]} -- [description]
+    
+    Returns:
+        [type] -- [description]
+    """
     expansion = 1
 
     def __init__(self, inplanes, planes, stride=1, dilation=1, downsample=None):
@@ -110,6 +125,14 @@ class Bottleneck(nn.Module):
 
 
 class ResNet(nn.Module):
+    """ResNet class
+    
+    Arguments:
+        nn {[type]} -- PyTorch neural net module
+    
+    Returns:
+        [type] -- ResNet object
+    """
 
     def __init__(self,
                  block,
@@ -117,7 +140,7 @@ class ResNet(nn.Module):
                  sample_input_D,
                  sample_input_H,
                  sample_input_W,
-                 num_seg_classes,
+                 num_classes,
                  shortcut_type='B',
                  no_cuda = False):
         self.inplanes = 64
@@ -142,35 +165,29 @@ class ResNet(nn.Module):
         self.layer4 = self._make_layer(
             block, 512, layers[3], shortcut_type, stride=1, dilation=4)
 
-        self.conv_seg = nn.Sequential(
-                                        nn.ConvTranspose3d(
-                                        512 * block.expansion,
-                                        32,
-                                        2,
-                                        stride=2
-                                        ),
-                                        nn.BatchNorm3d(32),
-                                        nn.ReLU(inplace=True),
-                                        nn.Conv3d(
-                                        32,
-                                        32,
-                                        kernel_size=3,
-                                        stride=(1, 1, 1),
-                                        padding=(1, 1, 1),
-                                        bias=False), 
-                                        nn.BatchNorm3d(32),
-                                        nn.ReLU(inplace=True),
-                                        nn.Conv3d(
-                                        32,
-                                        num_seg_classes,
-                                        kernel_size=1,
-                                        stride=(1, 1, 1),
-                                        bias=False) 
-                                        )
+        # segmentation module is voided
+        # self.conv_seg = nn.Sequential(  nn.ConvTranspose3d(512 * block.expansion,32,2,stride=2),
+        #                                 nn.BatchNorm3d(32),
+        #                                 nn.ReLU(inplace=True),
+        #                                 nn.Conv3d(32,32,kernel_size=3,stride=(1, 1, 1),padding=(1, 1, 1),bias=False), 
+        #                                 nn.BatchNorm3d(32),
+        #                                 nn.ReLU(inplace=True),
+        #                                 nn.Conv3d(32,num_classes,kernel_size=1,stride=(1, 1, 1),bias=False) 
+        #                                 )
+
+        # FCN Classifier Module for IQA
+        self.classifier = nn.Sequential(
+            nn.Linear(512*block.expansion, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(4096, 1024),
+            nn.ReLU(inplace=True),
+            nn.Linear(1024, num_classes)
+        )
 
         for m in self.modules():
             if isinstance(m, nn.Conv3d):
-                m.weight = nn.init.kaiming_normal(m.weight, mode='fan_out')
+                m.weight = nn.init.kaiming_normal_(m.weight, mode='fan_out')
             elif isinstance(m, nn.BatchNorm3d):
                 m.weight.data.fill_(1)
                 m.bias.data.zero_()
@@ -210,7 +227,14 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.layer4(x)
-        x = self.conv_seg(x)
+        # x = self.conv_seg(x)
+
+        # flatten the tensor for the FCN
+        shape = torch.prod(torch.tensor(x.shape[1:])).item()
+        x = x.view(-1, shape)
+
+        # Transfer Learning for IQA - multiclass classification
+        x = self.classifier(x)
 
         return x
 

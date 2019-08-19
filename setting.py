@@ -9,19 +9,19 @@ def parse_opts():
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '--data_root',
-        default='./data',
+        default='./data/ABIDE1/',
         type=str,
         help='Root directory path of data')
     parser.add_argument(
         '--img_list',
-        default='./data/train.txt',
+        default='./data/ABIDE1/train.csv',
         type=str,
         help='Path for image list file')
     parser.add_argument(
-        '--n_seg_classes',
+        '--n_classes',
         default=2,
         type=int,
-        help="Number of segmentation classes"
+        help="Number of classes for image quality"
     )
     parser.add_argument(
         '--learning_rate',  # set to 0.001 when finetune
@@ -35,7 +35,7 @@ def parse_opts():
         type=int,
         help='Number of jobs')
     parser.add_argument(
-        '--batch_size', default=2, type=int, help='Batch Size')
+        '--batch_size', default=4, type=int, help='Batch Size')
     parser.add_argument(
         '--phase', default='train', type=str, help='Phase of train or test')
     parser.add_argument(
@@ -50,17 +50,17 @@ def parse_opts():
         help='Number of total epochs to run')
     parser.add_argument(
         '--input_D',
-    default=56,
+    default=256,
         type=int,
         help='Input size of depth')
     parser.add_argument(
         '--input_H',
-        default=448,
+        default=256,
         type=int,
         help='Input size of height')
     parser.add_argument(
         '--input_W',
-        default=448,
+        default=160,
         type=int,
         help='Input size of width')
     parser.add_argument(
@@ -72,7 +72,7 @@ def parse_opts():
     )
     parser.add_argument(
         '--pretrain_path',
-        default='pretrain/resnet_50.pth',
+        default='pretrain/resnet_18.pth',
         type=str,
         help=
         'Path for pretrained model.'
@@ -80,7 +80,7 @@ def parse_opts():
     parser.add_argument(
         '--new_layer_names',
         #default=['upsample1', 'cmp_layer3', 'upsample2', 'cmp_layer2', 'upsample3', 'cmp_layer1', 'upsample4', 'cmp_conv1', 'conv_seg'],
-        default=['conv_seg'],
+        default=['classifier'],
         type=list,
         help='New layer except for backbone')
     parser.add_argument(
