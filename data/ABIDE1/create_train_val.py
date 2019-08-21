@@ -103,13 +103,13 @@ train_list_file_path = 'train.csv'
 data_root_dir = '/mnt/Depo/Datasets/ABIDE1/RawDataBIDS/'
 with open(train_list_file_path, 'w') as f:
     for index, row in y_train_pos.iterrows():
-        sub_id = row['subject_id']
+        sub_id = str(row['subject_id']).zfill(7) # zero padding the string with leading zeros
         site_id = row['site']
         label = 1
         nii_file_path = f'{data_root_dir}{site_id}/sub-{sub_id}/anat/sub-{sub_id}_T1w.nii.gz'
         f.write(f'{nii_file_path},{label}\n')
     for index, row in y_train_neg.iterrows():
-        sub_id = row['subject_id']
+        sub_id = str(row['subject_id']).zfill(7)
         site_id = row['site']
         label = -1
         nii_file_path = f'{data_root_dir}{site_id}/sub-{sub_id}/anat/sub-{sub_id}_T1w.nii.gz'
@@ -120,13 +120,13 @@ print(y_val_pos.head())
 val_list_file_path = 'val.csv'
 with open(val_list_file_path, 'w') as f:
     for index, row in y_val_pos.iterrows():
-        sub_id = row['subject_id']
+        sub_id = str(row['subject_id']).zfill(7)
         site_id = row['site']
         label = 1
         nii_file_path = f'{data_root_dir}{site_id}/sub-{sub_id}/anat/sub-{sub_id}_T1w.nii.gz'
         f.write(f'{nii_file_path},{label}\n')
     for index, row in y_val_neg.iterrows():
-        sub_id = row['subject_id']
+        sub_id = str(row['subject_id']).zfill(7)
         site_id = row['site']
         label = -1
         nii_file_path = f'{data_root_dir}{site_id}/sub-{sub_id}/anat/sub-{sub_id}_T1w.nii.gz'

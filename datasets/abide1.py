@@ -35,10 +35,10 @@ class Abide1Dataset(Dataset):
         self.phase = sets.phase
 
     def __nii2tensorarray__(self, data):
-        [z, y, x] = data.shape
-        new_data = np.reshape(data, [1, z, y, x])
+        [x, y, z] = data.shape # changing the dimension assignments
+        new_data = np.reshape(data, [1, x, y, z])
+
         new_data = new_data.astype("float32")
-            
         return new_data
     
     def __len__(self):
@@ -59,6 +59,9 @@ class Abide1Dataset(Dataset):
             # assert os.path.isfile(img_name)
             img = nibabel.load(img_name)
             # assert img is not None
+
+            #DEBUG:
+            print(img.shape)
             
             # data processing
             img_array = self.__training_data_process__(img)
@@ -95,7 +98,7 @@ class Abide1Dataset(Dataset):
         min_z = 75
         max_z = 225
 
-        return volume[min_z:max_z, :, :]
+        return volume[ :, :, min_z:max_z]
 
 
     def __random_center_crop__(self, data):
@@ -133,6 +136,29 @@ class Abide1Dataset(Dataset):
 
         return data[Z_min: Z_max, Y_min: Y_max, X_min: X_max]
 
+    def __random_crop__(self, data):
+        """ Crop a volume based on the desired height, width, and depth specified in settings
+        
+        Arguments:
+            data {[type]} -- [description]
+        """
+        [img_d, img_h, img_w] = data.shape
+        [max_D, max_H, max_W] = [img_d, img_h, img_w]
+        [min_D, min_H, min_W] = [0, 0, 0]
+        
+        in_D = self.input_D
+        in_H = self.input_H
+        in_W = self.input_W
+
+        D_0 = int(random.randint(min_D+1, max_D-in_D-1))
+        H_0 = int(random.randint(min_H+1, max_H-in_H-1))
+        W_0 = int(random.randint(min_W+1, max_W-in_W-1))
+
+        D_1 = int(D_0 + in_D)
+        H_1 = int(H_0 + in_H)
+        W_1 = int(W_0 + in_W)
+
+        return data[H_0:H_1, W_0:W_1, D_0:D_1]
 
 
     def __itensity_normalize_one_volume__(self, volume):
@@ -168,37 +194,40 @@ class Abide1Dataset(Dataset):
         Random crop with different methods:
         """ 
         # random center crop
-        data = self.__random_center_crop__ (data)
+        # data = self.__random_center_crop__ (data)
+
+        # random crop
+        data = self.__random_center_crop__(data)
         
         return data
 
     def __training_data_process__(self, data): 
         # crop data according net input size
-        data, label = data.get_data()
+        data = data.get_data()
         
         # drop out the invalid range
-        data = self.__drop_invalid_range__(data)
+        # data = self.__drop_invalid_range__(data)
         
         # crop data
         data = self.__crop_data__(data) 
 
         # resize data
-        data = self.__resize_data__(data)
+        # data = self.__resize_data__(data)
 
         # normalization datas
-        data = self.__itensity_normalize_one_volume__(data)
+        # data = self.__itensity_normalize_one_volume__(data)
 
-        return data, label
+        return data
 
 
     def __testing_data_process__(self, data): 
         # crop data according net input size
-        data, label = data.get_data()
+        data = data.get_data()
 
         # resize data
-        data = self.__resize_data__(data)
+        # data = self.__resize_data__(data)
 
         # normalization datas
-        data = self.__itensity_normalize_one_volume__(data)
+        # data = self.__itensity_normalize_one_volume__(data)
 
-        return data, label
+        return data
