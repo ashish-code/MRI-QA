@@ -28,7 +28,7 @@ def parse_opts():
     parser.add_argument('--no_cuda', default=False, type=bool, help='switch for use of cuda, if True, cuda is not used.')
     parser.add_argument('--gpu_id', default=[0],nargs='+',type=int, help='Gpu id lists')
     parser.add_argument('--model',default='resnet',type=str,help='(resnet | preresnet | wideresnet | resnext | densenet | ')
-    parser.add_argument('--model_depth',default=18,type=int,help='Depth of resnet (10 | 18 | 34 | 50 | 101)')
+    parser.add_argument('--model_depth',default=10,type=int,help='Depth of resnet (10 | 18 | 34 | 50 | 101)')
     parser.add_argument('--resnet_shortcut',default='B',type=str,help='Shortcut type of resnet (A | B)')
     parser.add_argument('--manual_seed', default=1, type=int, help='Manually set random seed')
     args = parser.parse_args()

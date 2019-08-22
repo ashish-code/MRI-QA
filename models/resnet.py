@@ -177,7 +177,7 @@ class ResNet(nn.Module):
 
         # FCN Classifier Module for IQA
         self.classifier = nn.Sequential(
-            nn.Linear(512*block.expansion, 4096),
+            nn.Linear(512*8*8*8, 4096),
             nn.ReLU(inplace=True),
             nn.Dropout(0.5),
             nn.Linear(4096, 1024),
@@ -225,13 +225,19 @@ class ResNet(nn.Module):
         x = self.maxpool(x)
         x = self.layer1(x)
         x = self.layer2(x)
+        print(f'shape before layer 3: {x.shape}')
         x = self.layer3(x)
+
+        print(f'shape before layer 4: {x.shape}')
         x = self.layer4(x)
         # x = self.conv_seg(x)
 
         # flatten the tensor for the FCN
         shape = torch.prod(torch.tensor(x.shape[1:])).item()
         x = x.view(-1, shape)
+
+        # debug:
+        print(f'shape before classifier: {x.shape}')
 
         # Transfer Learning for IQA - multiclass classification
         x = self.classifier(x)

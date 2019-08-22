@@ -28,7 +28,10 @@ def train(epoch):
     model.train()
 
     for batch_idx, (data, target) in enumerate(train_loader):
-        data, target = Variable(data), Variable(target)
+        # data = data.unsqueeze(1)
+        data = Variable(data)
+        target = torch.tensor(target)
+        target = Variable(target)
         # zero the gradients
         optimizer.zero_grad()
         output = model(data)
@@ -51,6 +54,7 @@ def test():
     correct = 0
     _n_test_images = len(test_loader.image_path_list)
     for data, target in test_loader():
+        data = data.unsqueeze(1)
         data, target = Variable(data, volatile=True), Variable(target)
 
         output = model(data)
@@ -70,7 +74,11 @@ sets = parse_opts()
 model, parameters = generate_model(sets) 
 
 #debug
-print(model)
+# print(model)
+
+print(f'type(model):{type(model)}')
+print(f'type(parameters):{type(parameters)}')
+print(f'type(model.parameters):{type(model.parameters)}')
 
 # freeze the pre-trained convolutional network parameters
 for param in parameters['base_parameters']:
@@ -78,34 +86,26 @@ for param in parameters['base_parameters']:
 
 # ----------------------------------------------------
 # Debug:
-for key in parameters.keys():
-    _list = parameters[key]
-    for i, item in enumerate(_list):
-        print(item.shape)
-        print(item.requires_grad)
-
-# ----------------------------------------------------
-# + model
-# + parameters
-# + settings (configuration options)
-# + dataloader (training)
-
-# - optimizer
-# - loss
-# - checkpoint
-
-# ---------------------------------------------------
+# for key in parameters.keys():
+#     _list = parameters[key]
+#     for i, item in enumerate(_list):
+#         print(item.shape)
+#         print(item.requires_grad)
 
 # criterion
 criterion = CrossEntropyLoss()
 # optimizer
-optimizer = optim.Adam(parameters, lr=0.01)
+params = [{ 'params': parameters['base_parameters'], 'lr': sets.learning_rate }, { 'params': parameters['new_parameters'], 'lr': sets.learning_rate*100 }]
+
+optimizer = optim.Adam(params)
 
 # train loader
-train_loader = ABIDE1(sets, train=True)
+train_dataset = ABIDE1(sets, train=True)
+train_loader = DataLoader(train_dataset, batch_size=16, shuffle=True, num_workers=4, drop_last=True)
 
 # test loader
-test_loader = ABIDE1(sets, train=False)
+test_dataset = ABIDE1(sets, train=False)
+
 
 for epoch in range(1,10):
     train(epoch)

@@ -80,7 +80,9 @@ class ABIDE1(Dataset):
         # convert to tensor
         nii_tensor = torch.tensor(nii)
         # add leading dimension for batch
-        # nii_tensor = nii_tensor.unsqueeze(0)
+        nii_tensor = nii_tensor.unsqueeze(0)
+
+        nii_tensor = nii_tensor.type(torch.FloatTensor)
 
         return nii_tensor, label
 
