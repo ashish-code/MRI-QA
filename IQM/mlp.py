@@ -17,95 +17,49 @@ import torch.nn.functional as F
 import pandas as pd
 import numpy as np 
 import argparse
-
+import os
 
 def parse_opts():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--phase', default='train', help='train or validation')
-    parser.add_argument('--data_file', default='x_abide.csv', help='data csv file')
-    parser.add_argument('--train_file', default='train_2.csv', help='set of subjects for training')
-    parser.add_argument('--val_file', default='val_2.csv', help='set of subjects for validation')
-    parser.add_argument('--test_data_file', default='x_ds030.csv', help='test data csv file')
-    parser.add_argument('--test_label_file', default='y_ds030.csv', help='test label csv file')
+    parser.add_argument('--phase', default='train', help='train/validation/test')
+    parser.add_argument('--train_file', default='./abide_train.csv', help='training data and labels')
+    parser.add_argument('--val_file', default='./abide_val.csv', help='validation data and labels')
+    parser.add_argument('--test_file', default='./ds030_test.csv', help='test data and labels')
+    parser.add_argument('--n_epochs', default=10000, help='number of training epochs')
+    parser.add_argument('--learning_rate', default=0.01, help='learning rate for the optimizer')
+    parser.add_argument('--chkpt_dir', default='./checkpoints/', help='checkpoint directory')
     args = parser.parse_args()
     return args
 
 
-class AbideIQMDataSet(Dataset):
+class IQMDataSet(Dataset):
     """
     class image quality metrics on the abide 1
     inherits from torch Dataset
     """
-    def __init__(self, options):
-        self.phase = options.phase
-        df_x = pd.read_csv(options.data_file)
-        df_x = df_x.as_matrix()
-        data_file = ''
-        if options.phase == 'train':
-            data_file = options.train_file
+    def __init__(self, options, phase='train'):
+        super().__init__()
+        if phase=='train':
+            raw_data = np.genfromtxt(options.train_file, delimiter=',')
+        elif phase=='val':
+            raw_data = np.genfromtxt(options.val_file, delimiter=',')
+        elif phase =='test':
+            raw_data = np.genfromtxt(options.test_file, delimiter=',')
         else:
-            data_file = options.val_file
-        
-        df_sub = pd.read_csv(data_file, header=None)
-        df_sub = df_sub.as_matrix()
-        
-        X = np.empty((df_sub.shape[0], df_x.shape[1]-1), dtype=np.float32)
-        
-        y = df_sub[:,-1]
-        for i in range(df_sub.shape[0]):
-            idx = df_sub[i,0]
-            _t = df_x[df_x[:,0]==idx]
-            _t = _t.tolist()
-            print(len(_t))
-            X[i,:] = np.array(_t[1:])
-        
-        self.data = X
-        self.label = y
+            print(f'Phase provided {phase} not recognized. Enter: train/val/test.')
+            exit()
+
+        self.data = raw_data[:,:-1]
+        self.label = raw_data[:,-1]
 
     def __len__(self):
-        n_row,_ = self.data.shape
-        return n_row
+        nrow, _ = self.data.shape
+        return nrow
 
     def __getitem__(self, index):
-        return self.data[index,:], self.label[index]
-
-
-class DSDataSet(Dataset):
-    """
-    Dataset class for DS030
-    Inherits from Torch Dataset
-    """
-    def __init__(self, options):
-        self.phase = options.phase
-        assert(self.phase == 'test')
-        df_x = pd.read_csv(options.test_data_file)
-        df_x = df_x.as_matrix()
-        df_y = pd.read_csv(options.test_label_file)
-        y_sub_ids = df_y['subject_id'].tolist()
-        y_labels = df_y['rater_1'].tolist()
-
-        y_label = []
-        y_sub = []
-        for idx, y_lbl in enumerate(y_labels):
-            if y_lbl == +1:
-                y_label.append(1)
-                y_sub.append(y_sub_ids[idx])
-            elif y_lbl == -1:
-                y_label.append(0)
-                y_sub.append(y_sub_ids[idx])
-        X = np.empty((len(y_sub), df_x.shape[1]-1), dtype=np.float32)
-        for id, sub_id in enumerate(y_sub):
-            X[id,:] = df_x[sub_id, 1:]
-        
-        self.data = X
-        self.label = np.array(y_label)
-
-    def __len__(self):
-        n_row,_ = self.data.shape
-        return n_row
-
-    def __getitem__(self, index):
-        return self.data[index,:], self.label[index]
+        _data = self.data[index,:]
+        _label = self.label[index]
+        return _data, _label
 
 
 class IQMMLP(nn.Module):
@@ -142,11 +96,95 @@ class IQMMLP(nn.Module):
 if __name__=='__main__':
     options = parse_opts()
 
-    # dataset object
-    abidedataset = AbideIQMDataSet(options)
-    train_loader = DataLoader(abidedataset, batch_size=64, shuffle=True)
+    # dataset objects
+    dataset_train = IQMDataSet(options, phase='train')
+    train_loader = DataLoader(dataset_train, batch_size=16, shuffle=True)
 
-    for data, target in train_loader:
-        print(data, target)
-    # dataloaders
+    dataset_val = IQMDataSet(options, phase='val')
+    n_validation = len(dataset_val)
+    val_loader = DataLoader(dataset_val, batch_size=n_validation, shuffle=True, drop_last=True)
+
+    dataset_test = IQMDataSet(options, phase='test')
+    n_test = len(dataset_test)
+    test_loader = DataLoader(dataset_test, batch_size=n_test, shuffle=True, drop_last=True)
+
+    # model
+    model = IQMMLP(68, 2)
+    model = model.float()
+
+    # loss
+    criterion = nn.CrossEntropyLoss()
+
+    # optimizer
+    optimizer = torch.optim.Adam(model.parameters(), lr=options.learning_rate, betas=(0.9, 0.999))
+    # put model in train mode
+
+    # checkpoint file
+    chkpt_file = options.chkpt_dir+'abide.pth'
+
+    if os.path.exists(chkpt_file):
+        checkpoint = torch.load(chkpt_file)
+        model.load_state_dict(checkpoint['model_state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        epoch = checkpoint['epoch']
+        loss = checkpoint['loss']
+    else:
+        model.train()
+        epoch = 0
+        while epoch < options.n_epochs:
+            epoch += 1
+            running_loss = 0.0
+            batch_count = 0
+            for batch_itr, (batch_data, batch_target) in enumerate(train_loader):
+                optimizer.zero_grad()
+                batch_count += 1
+
+                outputs = model(batch_data.float())
+                loss = criterion(outputs, batch_target.long())
+                loss.backward()
+                optimizer.step()
+
+                running_loss += loss.item()
+
+            if epoch%100 == 0:    
+                print('epoch: %d, loss: %.6f' %(epoch, running_loss / batch_count))
+        
+        print('completed training')
+        
+        torch.save({'epoch': epoch, 'model_state_dict': model.state_dict(), 'optimizer_state_dict': optimizer.state_dict(), 'loss':loss}, chkpt_file)
+
+    # put model in evaluation mode
+    model.eval()
+    # ---------------  Validation -------------------
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for raw_data in val_loader:
+            data, label = raw_data
+            data = data.float()
+            label = label.long()
+            output = model(data)
+            _, predicted = torch.max(output.data, 1)
+            total += label.size(0)
+            correct += (predicted == label).sum().item()
+    
+    print('Accuracy on ABIDE validation: %f %%'%(100*correct/total))
+
+
+    # ----------------- Test -----------------
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for raw_data in test_loader:
+            data, label = raw_data
+            data = data.float()
+            label = label.long()
+            output = model(data)
+            _, predicted = torch.max(output.data, 1)
+            total += label.size(0)
+            correct += (predicted == label).sum().item()
+    
+    print('Accuracy on DS030 test: %f %%'%(100*correct/total))    
+
+
 
