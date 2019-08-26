@@ -1,5 +1,6 @@
 import pandas as pd 
 import numpy as np 
+import matplotlib.pyplot as plt
 
 
 def create_data_file(label_file, out_file):
@@ -33,6 +34,40 @@ def create_data_file(label_file, out_file):
     data_df_cat.to_csv(out_file, sep=',', header=False, index=False)
 
 
+def create_data_file_2(label_file, out_file):
+    data_file = './x_abide.csv'
+    # read the label csv file
+    label_df = pd.read_csv(label_file)
+    
+    # assign column names
+    # label_df.columns = ['subject_id', 'label']
+    # set the column with subject id as index of dataframe
+    label_df = label_df.set_index('subject_id')
+    # change the label for negative class from -1 to 0
+    # label_df = label_df.replace(-1, 0)
+    # read the data csv file
+    data_df = pd.read_csv(data_file)
+    # remove the non-informative features of spacing
+    data_df = data_df.drop(columns=['spacing_x', 'spacing_y', 'spacing_z'])
+    # set the column with subject id as index of dataframe
+    data_df = data_df.set_index('subject_id')
+    # slice the training data from the entire data corpus
+    data_df_select = data_df[data_df.index.isin(label_df.index)]
+    
+    # ensure the bijective mapping between labels and data in case of missing data
+    label_df = label_df[label_df.index.isin(data_df_select.index)]
+    # sort the dataframe by the subject_id as index
+    label_df.sort_index(inplace=True)
+    data_df_select.sort_index(inplace=True)
+    # concatenate the data with the label
+    data_df_cat = pd.concat([data_df_select, label_df], axis=1)
+    # debug
+
+    
+    # write dataframe to csv without index and header
+    data_df_cat.to_csv(out_file, sep=',', header=False, index=False)
+
+
 
 def create_train_val_files(label_files, out_files):
     """create training and validation data files for abide 1
@@ -53,7 +88,7 @@ def create_test_file():
     """
     data_file = './x_ds030.csv'
     label_file = './y_ds030.csv'
-    out_file = './ds030_test.csv'
+    out_file = './ds030.csv'
 
     # read the data csv file
     data_df = pd.read_csv(data_file)
@@ -85,6 +120,8 @@ def create_test_file():
 
     # concatenate the data with the label
     data_df_cat = pd.concat([data_df, label_df], axis=1)
+
+    # data_df_cat = balance_classes(data_df_cat)
 
     # debug
     # print(data_df_cat.shape)
@@ -204,6 +241,60 @@ def test_balance_classes():
     print(ds_b[65].value_counts())
 
 
+def label_file():
+    abide_y_in = 'y_abide.csv'
+    abidy_y_out = 'label_abide.csv'
+    ds030_y_in = 'y_ds030.csv'
+    ds030_y_in_2 = 'y_ds030_noghost.csv'
+    ds030_y_out = 'label_ds030.csv'
+
+    ayin = pd.read_csv(abide_y_in)
+    meanratings = ayin[['rater_1', 'rater_2', 'rater_3']].mean(axis=1, skipna=True)
+    
+    # meanratings.hist(bins=9)
+    # plt.xlabel('Mean Opinion Score (MOS)')
+    # plt.ylabel('Number of MRI scans')
+    # plt.title('MOS for MRI scans in ABIDE-1 dataset')
+    # plt.show()
+
+    new_label = []
+    for item in meanratings:
+        if item > 0.0:
+            new_label.append(1)
+        else:
+            new_label.append(0)
+
+    ayin[['rater_1']]=new_label
+    ayin = ayin.set_index('subject_id')
+    ayin = ayin.drop(columns=['site','rater_2', 'rater_3'])
+    ayin = ayin.rename(columns={'rater_1':'label'})
+    # ayin.to_csv(abidy_y_out)
+
+    dyin = pd.read_csv(ds030_y_in)
+    dyin2 = pd.read_csv(ds030_y_in_2)
+    print(dyin.head())
+    print(dyin.rater_1.value_counts())
+
+    print(dyin2.head())
+    print(dyin2.rater_1.value_counts())
+
+
+def checkfiles():
+    abide = 'abide.csv'
+    ds030 = 'ds030.csv'
+
+    abide = pd.read_csv(abide)
+    print(abide.shape)
+
+    ds030 = pd.read_csv(ds030)
+    print(ds030.shape)
+
+
+def call_for_balance(file_path):
+    raw_data = pd.read_csv(file_path, header=None)
+    raw_data = balance_classes(raw_data)
+    raw_data.to_csv(file_path, header=False, index=False, sep=',')
+
 
 
 
@@ -217,8 +308,14 @@ if __name__=='__main__':
     # prune_features('./x_abide.csv')
     # label_proportion()
     # try_upsampling()
-    test_balance_classes()
-
+    # test_balance_classes()
+    # label_file()
+    # create_test_file()
+    # create_data_file_2('label_abide.csv', 'abide.csv')
+    checkfiles()
+    call_for_balance('abide.csv')
+    call_for_balance('ds030.csv')
+    checkfiles()
 
 
 

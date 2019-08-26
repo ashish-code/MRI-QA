@@ -14,6 +14,8 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import Dataset
 import torch.nn.functional as F 
 
+for skorch import NeuralNetClassifier
+
 import pandas as pd
 import numpy as np 
 import argparse

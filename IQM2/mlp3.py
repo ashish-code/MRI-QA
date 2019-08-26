@@ -23,9 +23,9 @@ import matplotlib.pyplot as plt
 def parse_opts():
     parser = argparse.ArgumentParser()
     parser.add_argument('--phase', default='train', help='train/validation/test')
-    parser.add_argument('--train_file', default='./abide_train.csv', help='training data and labels')
+    parser.add_argument('--train_file', default='./abide.csv', help='training data and labels')
     parser.add_argument('--val_file', default='./abide_val.csv', help='validation data and labels')
-    parser.add_argument('--test_file', default='./ds030_test.csv', help='test data and labels')
+    parser.add_argument('--test_file', default='./ds030.csv', help='test data and labels')
     parser.add_argument('--n_epochs', default=40000, help='number of training epochs')
     parser.add_argument('--learning_rate', default=0.001, help='learning rate for the optimizer')
     parser.add_argument('--chkpt_dir', default='./checkpoints/', help='checkpoint directory')
@@ -80,7 +80,7 @@ class IQMDataSet(Dataset):
             print(f'Phase provided {phase} not recognized. Enter: train/val/test.')
             exit()
         # balance the class labels in the data
-        raw_data = balance_classes(raw_data)
+        # raw_data = balance_classes(raw_data)
         raw_data = raw_data.as_matrix()
         self.data = raw_data[:,:-1]
         self.label = raw_data[:,-1]
@@ -308,11 +308,11 @@ if __name__=='__main__':
 
     dataset_val = IQMDataSet(options, phase='val')
     n_validation = len(dataset_val)
-    val_loader = DataLoader(dataset_val, batch_size=n_validation, shuffle=True, drop_last=True)
+    val_loader = DataLoader(dataset_val, batch_size=32, shuffle=True, drop_last=True)
 
     dataset_test = IQMDataSet(options, phase='test')
     n_test = len(dataset_test)
-    test_loader = DataLoader(dataset_test, batch_size=n_test, shuffle=True, drop_last=True)
+    test_loader = DataLoader(dataset_test, batch_size=32, shuffle=True, drop_last=True)
 
     # model
     model = IQMMLP4(65, 2)
@@ -382,7 +382,7 @@ if __name__=='__main__':
         
         loss_trend.append(running_loss)
 
-        if epoch%100 == 0:
+        if epoch%1000 == 0:
             train_loss = running_loss / batch_count
             train_accuracy = run_train(model, train_loader)
             val_accuracy = run_evaluation(model, val_loader)
