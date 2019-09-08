@@ -21,13 +21,13 @@ The principal challenges facing quality assessment are: absence of a universally
 ## IQMs
 We have utilized Image Quality Metrics (IQMs) as features and build a FCN for quality assessment on ABIDE-1 and DS030 MRI datasets.
 Overview of the IQMs we used is tabulated below
-![Image Quality metrics](https://www.dropbox.com/s/y77ergfdclwh3lh/iqms.png?dl=1)
+![Image Quality metrics](https://www.dropbox.com/s/y77ergfdclwh3lh/iqms.png?dl=0)
 
 The FCN network architecture is
-![FCN model architecture](https://www.dropbox.com/s/sh6vbu8r0bcmde6/network_arch.PNG?dl=1)
+![FCN model architecture](https://www.dropbox.com/s/sh6vbu8r0bcmde6/network_arch.PNG?dl=0)
 
 The current training, validation and testing performance is
-![Training and Validation Performance](https://www.dropbox.com/s/3k23k4quj3lo3bj/performance.png?dl=1)
+![Training and Validation Performance](https://www.dropbox.com/s/3k23k4quj3lo3bj/performance.png?dl=0)
 
 The aggregate performance is:
-![Quality Assessment performance](https://www.dropbox.com/s/sfzv1hcwdhg8p76/results_table.png?dl=1)
+![Quality Assessment performance](https://www.dropbox.com/s/sfzv1hcwdhg8p76/results_table.png?dl=0)
